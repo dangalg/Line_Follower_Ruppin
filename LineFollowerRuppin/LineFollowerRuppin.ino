@@ -32,24 +32,13 @@ float sensorValueR_S;
 float sensorValueL_S;
 float sensorValueL_L_S;
 
-// Change the values below to suit your robot's motors, weight, wheel type, etc.
-#define KP .2
-#define KD 5
-#define M1_DEFAULT_SPEED 70
-#define M2_DEFAULT_SPEED 70
-#define M1_MAX_SPEED 255
-#define M2_MAX_SPEED 255
-#define MIDDLE_SENSOR 4
-#define NUM_SENSORS  3      // number of sensors used
-#define TIMEOUT       2500  // waits for 2500 us for sensor outputs to go low
-#define EMITTER_PIN   2     // emitter is controlled by digital pin 2
 int debug = 1; // set to 1 if serial debug output needed
-int lastError;
 int lastDirection = 1; // 0 left 1 right
 
-
 void setup() {
-  Serial.begin(9600);
+  if(debug){
+    Serial.begin(9600);
+  }
 
   manual_calibration();
 
@@ -134,34 +123,56 @@ void manual_calibration()
 void steerCar()
 {
   //Serial.print(sensorValueR_S); Serial.print(" "); Serial.print(sensorValueL_S); Serial.println();
-  if((sensorValueR_S >300)&&(sensorValueL_S >300)){
-    forward(); 
-    if(debug){Serial.println("forward");}
-    
-  }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
-  if((sensorValueR_S <300)&&(sensorValueL_S >300)){
-    turnLeft(); 
-    lastDirection = 0;
-    if(debug){Serial.println("turnLeft");}
-  } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
-  if((sensorValueR_S >300)&&(sensorValueL_S <300)){
-    turnRight(); 
-    if(debug){Serial.println("turnRight");}
-    lastDirection = 1;
-  }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
-  if((sensorValueR_S <300)&&(sensorValueL_S <300)){
-    if(lastDirection == 0)
-    {
-      turnLeft();
-      if(debug){Serial.println("turn to left after left line");}
-    }
-    else
-    {
-      turnRight();
-      if(debug){Serial.println("turn to right after left line");}
-    }
-    
-  } //if Right Sensor and Left Sensor are at White color then it will call Stop function
+
+  // LLS and RRS have priority. If they see something they must turn towards it
+  if(sensorValueR_R_S>300 || sensorValueL_L_S > 300)
+  {
+    if((sensorValueR_R_S >300)&&(sensorValueL_L_S >300)){
+      forward(); 
+      if(debug){Serial.println("forward intersection");}
+    }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
+    if((sensorValueR_R_S <300)&&(sensorValueL_L_S >300)){
+      turn90Left(); 
+      lastDirection = 0;
+      if(debug){Serial.println("turn 90 Left");}
+    } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
+    if((sensorValueR_R_S >300)&&(sensorValueL_L_S <300)){
+      turn90Right(); 
+      if(debug){Serial.println("turn 90 Right");}
+      lastDirection = 1;
+    }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
+  }
+  else{
+    if((sensorValueR_S >300)&&(sensorValueL_S >300)){
+      forward(); 
+      if(debug){Serial.println("forward");}
+      
+    }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
+    if((sensorValueR_S <300)&&(sensorValueL_S >300)){
+      turnLeft(); 
+      lastDirection = 0;
+      if(debug){Serial.println("turnLeft");}
+    } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
+    if((sensorValueR_S >300)&&(sensorValueL_S <300)){
+      turnRight(); 
+      if(debug){Serial.println("turnRight");}
+      lastDirection = 1;
+    }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
+    if((sensorValueR_S <300)&&(sensorValueL_S <300)){
+      if(lastDirection == 0)
+      {
+        turnWideLeft();
+        if(debug){Serial.println("turn to left after left line");}
+      }
+      else
+      {
+        turnWideRight();
+        if(debug){Serial.println("turn to right after left line");}
+      }
+      
+    } //if Right Sensor and Left Sensor are at White color then it will call Stop function
+
+  }
 }
 
 void forward(){  //forword
@@ -188,16 +199,64 @@ void turnRight(){ //turnRight
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
   analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
 }
-void turnLeft(){ //turnLeft
+
+void turn90Right(){ //turnRight
   //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(motorADirection, LOW); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
   analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
 
   //Motor B
+  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
+  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
+  analogWrite(motorBSpeed, 200);    //Spins the motor on Channel B at half speed
+}
+
+void turnWideRight(){ //turnRight
+  //Motor A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
+  analogWrite(motorASpeed, 20);   //Spins the motor on Channel A at full speed
+
+  //Motor B
+  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
+  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
+  analogWrite(motorBSpeed, 150);    //Spins the motor on Channel B at half speed
+}
+void turnLeft(){ //turnLeft
+  //Motor A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
+  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
+
+  //Motor B
   digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 50);    //Spins the motor on Channel B at half speed
+}
+
+void turn90Left(){ //turnLeft
+  //Motor A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
+  analogWrite(motorASpeed, 200);   //Spins the motor on Channel A at full speed
+
+  //Motor B
+  digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
+  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
+  analogWrite(motorBSpeed, 50);    //Spins the motor on Channel B at half speed
+}
+
+void turnWideLeft(){ //turnLeft
+  //Motor A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
+  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
+  analogWrite(motorASpeed, 20);   //Spins the motor on Channel A at full speed
+
+  //Motor B
+  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
+  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
+  analogWrite(motorBSpeed, 150);    //Spins the motor on Channel B at half speed
 }
 void Stop(){ //stop
   //Motor A
@@ -209,42 +268,4 @@ void Stop(){ //stop
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, HIGH);   //Disengage the Brake for Channel B
   analogWrite(motorBSpeed, 0);    //Spins the motor on Channel B at half speed
-}
-
-void steerCarPID()
-{
-  int position = getDataFromSensors();
-  int error = position - 500;
-
-  int motorSpeed = KP * error + KD * (error - lastError);
-  lastError = error;
-
-  int leftMotorSpeed = M1_DEFAULT_SPEED + motorSpeed;
-  int rightMotorSpeed = M2_DEFAULT_SPEED - motorSpeed;
-
-  if(leftMotorSpeed > 255) {leftMotorSpeed = 255;}
-  if(rightMotorSpeed > 255) {rightMotorSpeed = 255;}
-  if(leftMotorSpeed < 0) {leftMotorSpeed = 0;}
-  if(rightMotorSpeed < 0) {rightMotorSpeed = 0;}
-  
-  if(debug)
-  {
-    Serial.print("position: "); Serial.print(position);
-    Serial.print(" error: "); Serial.print(error); 
-    Serial.print(" lastError: "); Serial.print(lastError); 
-    Serial.print(" motorSpeed: "); Serial.print(motorSpeed); 
-    Serial.print(" leftMotorSpeed: "); Serial.print(leftMotorSpeed); 
-    Serial.print(" rightMotorSpeed: "); Serial.print(rightMotorSpeed); 
-    Serial.println();
-  }
-
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, rightMotorSpeed);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, leftMotorSpeed);    //Spins the motor on Channel B at half speed
 }
