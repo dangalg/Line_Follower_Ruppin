@@ -125,18 +125,18 @@ void steerCar()
   //Serial.print(sensorValueR_S); Serial.print(" "); Serial.print(sensorValueL_S); Serial.println();
 
   // LLS and RRS have priority. If they see something they must turn towards it
-  if(sensorValueR_R_S>300 || sensorValueL_L_S > 300)
+  if(sensorValueR_R_S>400 || sensorValueL_L_S > 400)
   {
-    if((sensorValueR_R_S >300)&&(sensorValueL_L_S >300)){
-      forward(); 
+    if((sensorValueR_R_S >400)&&(sensorValueL_L_S >400)){
+      forwardStrong(); 
       if(debug){Serial.println("forward intersection");}
     }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
-    if((sensorValueR_R_S <300)&&(sensorValueL_L_S >300)){
+    if((sensorValueR_R_S <400)&&(sensorValueL_L_S >400)){
       turn90Left(); 
       lastDirection = 0;
       if(debug){Serial.println("turn 90 Left");}
     } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
-    if((sensorValueR_R_S >300)&&(sensorValueL_L_S <300)){
+    if((sensorValueR_R_S >400)&&(sensorValueL_L_S <400)){
       turn90Right(); 
       if(debug){Serial.println("turn 90 Right");}
       lastDirection = 1;
@@ -180,14 +180,21 @@ void forward(){  //forword
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 255);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 255);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
   
 }
+
+void forwardStrong()
+{
+  forward();
+  delay(600);
+}
+
 void turnRight(){ //turnRight
   //Motor A
   digitalWrite(motorADirection, LOW); //Establishes forward direction of Channel A
@@ -209,19 +216,19 @@ void turn90Right(){ //turnRight
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 200);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
 }
 
 void turnWideRight(){ //turnRight
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 20);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 150);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
 }
 void turnLeft(){ //turnLeft
   //Motor A
@@ -239,7 +246,7 @@ void turn90Left(){ //turnLeft
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 200);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
@@ -251,12 +258,12 @@ void turnWideLeft(){ //turnLeft
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 20);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 150);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
 }
 void Stop(){ //stop
   //Motor A
