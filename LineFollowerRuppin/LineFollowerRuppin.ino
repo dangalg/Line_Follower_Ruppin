@@ -1,10 +1,13 @@
-// motor data
-int motorADirection = 12;
-int motorABrake = 9;
-int motorASpeed = 3;
-int motorBDirection = 13;
-int motorBBrake = 8;
-int motorBSpeed = 11;
+//APDS color sensor libaries
+#include <Wire.h>
+#include <SparkFun_APDS9960.h>
+
+// Global Variables for APDS color sensor
+SparkFun_APDS9960 apds = SparkFun_APDS9960();
+uint16_t ambient_light = 0;
+uint16_t red_light = 0;
+uint16_t green_light = 0;
+uint16_t blue_light = 0;
 
 // ir sensor data
 #define R_R_S 2 //ir sensor Right
@@ -32,8 +35,27 @@ float sensorValueR_S;
 float sensorValueL_S;
 float sensorValueL_L_S;
 
-int debug = 1; // set to 1 if serial debug output needed
 int lastDirection = 1; // 0 left 1 right
+
+// motor data
+int motorADirection = 12;
+int motorABrake = 9;
+int motorASpeed = 3;
+int motorBDirection = 13;
+int motorBBrake = 8;
+int motorBSpeed = 11;
+
+// RGB Led data
+#define RED 90
+#define GREEN 91
+#define BLUE 92
+
+int ledRed = 5; 
+int ledGreen = 6;  
+int ledBlue = 10;
+
+int debug = 1; // set to 1 if serial debug output needed
+
 
 void setup() {
   if(debug){
@@ -41,15 +63,22 @@ void setup() {
   }
 
   manual_calibration();
-
+  setupAPDS();
 }
 
 void loop() {
-  getDataFromSensors();
-  steerCar();
+  //getDataFromSensors();
+  //steerCar();
+
+  activateRGB(RED);
+  delay(3000);
+  activateRGB(GREEN);
+  delay(3000);
+  activateRGB(BLUE);
+  delay(3000);
 }
 
-int getDataFromSensors()
+void getDataFromSensors()
 {
   // put your main code here, to run repeatedly:
   R_R_Sval = analogRead(R_R_S);
@@ -61,33 +90,6 @@ int getDataFromSensors()
   sensorValueR_S = map(R_Sval, minR_Sval, maxR_Sval,0,1000);
   sensorValueL_S = map(L_Sval, minL_Sval, maxL_Sval,0,1000);
   sensorValueL_L_S = map(L_L_Sval, minL_L_Sval, maxL_L_Sval,0,1000);
-
-//  if(sensorValueR_R_S < 0){sensorValueR_R_S = 0; }
-//  if(sensorValueR_S < 0){sensorValueR_R_S = 0; }
-//  if(sensorValueL_S < 0){sensorValueL_S = 0; }
-//  if(sensorValueL_L_S < 0){sensorValueL_L_S = 0; }
-//
-//  if(sensorValueR_R_S > 255){sensorValueR_R_S = 255; }
-//  if(sensorValueR_S > 255){sensorValueR_R_S = 255; }
-//  if(sensorValueL_S > 255){sensorValueL_S = 255; }
-//  if(sensorValueL_L_S > 255){sensorValueL_L_S = 255; }
-
-  if(debug)
-  {
-//    Serial.print("R_R_S: "); Serial.print(sensorValueR_R_S); 
-//    Serial.print(" R_S: "); Serial.print(sensorValueR_S); 
-//    Serial.print(" L_S: "); Serial.print(sensorValueL_S); 
-//    Serial.print(" L_L_S: "); Serial.print(sensorValueL_L_S); 
-//    Serial.println();
-  }
-
-//  int pos = (sensorValueL_L_S * 1 + sensorValueL_S * 1000 + sensorValueR_S * 2000 + sensorValueR_R_S * 3000)/
-//                  (sensorValueL_L_S + sensorValueL_S + sensorValueR_S + sensorValueR_R_S);
-
-  int pos = (sensorValueL_S * 1 + sensorValueR_S * 1000)/
-                  (sensorValueL_S + sensorValueR_S);
-                  
-  return pos;
 }
 
 void manual_calibration()
@@ -192,14 +194,14 @@ void forward(){  //forword
 void forwardStrong()
 {
   forward();
-  delay(600);
+  delay(900);
 }
 
 void turnRight(){ //turnRight
   //Motor A
-  digitalWrite(motorADirection, LOW); //Establishes forward direction of Channel A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 10);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
@@ -209,9 +211,9 @@ void turnRight(){ //turnRight
 
 void turn90Right(){ //turnRight
   //Motor A
-  digitalWrite(motorADirection, LOW); //Establishes forward direction of Channel A
+  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 30);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
@@ -237,9 +239,9 @@ void turnLeft(){ //turnLeft
   analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
 
   //Motor B
-  digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
+  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 50);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 10);    //Spins the motor on Channel B at half speed
 }
 
 void turn90Left(){ //turnLeft
@@ -251,7 +253,7 @@ void turn90Left(){ //turnLeft
   //Motor B
   digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 50);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 30);    //Spins the motor on Channel B at half speed
 }
 
 void turnWideLeft(){ //turnLeft
@@ -275,4 +277,55 @@ void Stop(){ //stop
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, HIGH);   //Disengage the Brake for Channel B
   analogWrite(motorBSpeed, 0);    //Spins the motor on Channel B at half speed
+}
+
+void setupAPDS()
+{
+  // Initialize APDS-9960 (configure I2C and initial values)
+  if ( apds.init() ) {
+    if(debug){Serial.println(F("APDS-9960 initialization complete"));}
+  } else {
+    if(debug){Serial.println(F("Something went wrong during APDS-9960 init!"));}
+  }
+  // Start running the APDS-9960 light sensor (no interrupts)
+//  if ( apds.enableLightSensor(false) ) {
+//    if(debug){Serial.println(F("Light sensor is now running"));}
+//  } else {
+//    if(debug){Serial.println(F("Something went wrong during light sensor init!"));}
+//  }
+
+  // Adjust the Proximity sensor gain
+//  if ( !apds.setProximityGain(PGAIN_2X) ) {
+//    if(debug){Serial.println(F("Something went wrong trying to set PGAIN"));}
+//  }
+  
+  // Start running the APDS-9960 proximity sensor (no interrupts)
+//  if ( apds.enableProximitySensor(false) ) {
+//    if(debug){Serial.println(F("Proximity sensor is now running"));}
+//  } else {
+//    if(debug){Serial.println(F("Something went wrong during sensor init!"));}
+//  }
+}
+
+void activateRGB(int color)
+{
+
+  if(color == RED)
+  {
+    analogWrite(ledRed,255); 
+    analogWrite(ledGreen,0);  
+    analogWrite(ledBlue,0);
+  }
+  else if(color == GREEN)
+  {
+    analogWrite(ledRed,0); 
+    analogWrite(ledGreen,255);  
+    analogWrite(ledBlue,0);
+  }
+  else if(color == BLUE)
+  {
+    analogWrite(ledRed,0); 
+    analogWrite(ledGreen,0);  
+    analogWrite(ledBlue,255);
+  }
 }
