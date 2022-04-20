@@ -56,8 +56,13 @@ int ledRed = 5;
 int ledGreen = 6;  
 int ledBlue = 10;
 
-int debug = 1; // set to 1 if serial debug output needed
+int debug = 0; // set to 1 if serial debug output needed
 int debug2 = 0;
+
+// time
+unsigned long StartTime;
+unsigned long CurrentTime;
+unsigned long ElapsedTime;
 
 
 void setup() {
@@ -170,19 +175,49 @@ void steerCar()
 
     if(!sensorValueR_S && !sensorValueL_S && !sensorValueR_R_S && !sensorValueL_L_S)
     { 
+      
       // reached empty space
       if(lastDirection > 3)
       {
-        if(debug){Serial.println("go forward");}
-        forward();
+        CurrentTime = millis();
+        ElapsedTime = CurrentTime - StartTime;
+        // go forward until you see nothing happens then go back
+        if(ElapsedTime > 1000)
+        {
+          if(lastDirection == 5)
+          {
+            turnWideLeft();
+          }
+          else if(lastDirection == 6)
+          {
+            turnWideRight();
+          }
+        }
+        else
+        {
+          if(debug){Serial.println("go forward");}
+          forward();
+        }
       }
-      setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+      else
+      {
+        if(lastDirection == 2)
+        {
+          forwardStrong(100);
+          turn90Left();
+        }
+        else if(lastDirection == 3)
+        {
+          forwardStrong(100);
+          turn90Right();
+        }
+      }
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     else if(sensorValueR_R_S || sensorValueL_L_S)
     {
       if((sensorValueR_R_S)&&(sensorValueL_L_S)){
-        forwardStrong(600); 
+        forward(); 
         if(debug){Serial.println("forward intersection");}
         
         lastDirection = 1;
@@ -211,14 +246,15 @@ void steerCar()
       if((sensorValueR_S)&&(sensorValueL_S)){
         forward(); 
         if(debug){Serial.println("forward");}
-        
+        StartTime = millis();
+
         lastDirection = 4;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
       }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
       if((!sensorValueR_S)&&(sensorValueL_S)){
         turnLeft(); 
-        
+        StartTime = millis();
         lastDirection = 5;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
@@ -227,7 +263,7 @@ void steerCar()
       if((sensorValueR_S)&&(!sensorValueL_S)){
         turnRight(); 
         if(debug){Serial.println("turnRight");}
-        
+        StartTime = millis();
         lastDirection = 6;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
@@ -392,8 +428,15 @@ void activateRGB(int color)
 
 void setSensorStatus(int lls, int ls, int rs, int rrs)
 {
-  lastSesorStatus[0] = sensorValueR_R_S;
-  lastSesorStatus[1] = sensorValueR_S;
-  lastSesorStatus[2] = sensorValueL_S;
-  lastSesorStatus[3] = sensorValueL_L_S;
+  // set status only if sensors have changed
+  if(lastSesorStatus[0] != sensorValueR_R_S ||
+      lastSesorStatus[1] != sensorValueR_S ||
+      lastSesorStatus[2] != sensorValueL_S ||
+      lastSesorStatus[3] != sensorValueL_L_S)
+      {
+        lastSesorStatus[0] = sensorValueR_R_S;
+        lastSesorStatus[1] = sensorValueR_S;
+        lastSesorStatus[2] = sensorValueL_S;
+        lastSesorStatus[3] = sensorValueL_L_S;
+      }
 }
