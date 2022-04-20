@@ -37,6 +37,7 @@ float sensorValueL_S;
 float sensorValueL_L_S;
 
 int lastDirection = 1; // 0 left 1 right
+int lastSesorStatus[4] = {0};
 
 // motor data
 int motorADirection = 12;
@@ -70,8 +71,11 @@ void setup() {
 
 void loop() {
   getDataFromSensors();
-  checkProximity();
   steerCar();
+
+  checkProximity();
+
+  checkColor();
 }
 
 void checkProximity()
@@ -90,7 +94,7 @@ void checkColor()
   // Read the light levels (ambient, red, green, blue)
   apds.readRedLight(red_light);
   apds.readGreenLight(green_light);
-  apds.readBlueLight(blue_light);
+  apds.readGreenLight(blue_light);
   if(debug){Serial.print("red_light: ");Serial.print(red_light);
   Serial.print(" green_light: ");Serial.print(green_light);
   Serial.print(" blue_light: ");Serial.print(blue_light);
@@ -159,7 +163,6 @@ void steerCar()
   if(proximity_data > 200){
     if(debug){Serial.println("proximity close stop");}
     Stop();
-    checkColor();
   }
   else
   {
@@ -173,6 +176,7 @@ void steerCar()
         if(debug){Serial.println("go forward");}
         forward();
       }
+      setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     else if(sensorValueR_R_S || sensorValueL_L_S)
@@ -180,34 +184,53 @@ void steerCar()
       if((sensorValueR_R_S)&&(sensorValueL_L_S)){
         forwardStrong(600); 
         if(debug){Serial.println("forward intersection");}
+        
         lastDirection = 1;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
       }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
       if((!sensorValueR_R_S)&&(sensorValueL_L_S)){
         turn90Left(); 
-        lastDirection = 2;
         if(debug){Serial.println("turn 90 Left");}
+        
+        lastDirection = 2;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
+        
       } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
       if((sensorValueR_R_S)&&(!sensorValueL_L_S)){
         turn90Right(); 
         if(debug){Serial.println("turn 90 Right");}
+        
         lastDirection = 3;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
       }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
     }
     else{
       if((sensorValueR_S)&&(sensorValueL_S)){
         forward(); 
         if(debug){Serial.println("forward");}
+        
         lastDirection = 4;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
       }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
       if((!sensorValueR_S)&&(sensorValueL_S)){
         turnLeft(); 
+        
         lastDirection = 5;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
         if(debug){Serial.println("turnLeft");}
       } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
       if((sensorValueR_S)&&(!sensorValueL_S)){
         turnRight(); 
         if(debug){Serial.println("turnRight");}
+        
         lastDirection = 6;
+        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        
       }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
     }
   }
@@ -365,4 +388,12 @@ void activateRGB(int color)
     analogWrite(ledGreen,0);  
     analogWrite(ledBlue,255);
   }
+}
+
+void setSensorStatus(int lls, int ls, int rs, int rrs)
+{
+  lastSesorStatus[0] = sensorValueR_R_S;
+  lastSesorStatus[1] = sensorValueR_S;
+  lastSesorStatus[2] = sensorValueL_S;
+  lastSesorStatus[3] = sensorValueL_L_S;
 }
