@@ -199,19 +199,6 @@ void steerCar()
           forward();
         }
       }
-      else
-      {
-        if(lastDirection == 2)
-        {
-          forwardStrong(100);
-          turn90Left();
-        }
-        else if(lastDirection == 3)
-        {
-          forwardStrong(100);
-          turn90Right();
-        }
-      }
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     else if(sensorValueR_R_S || sensorValueL_L_S)
