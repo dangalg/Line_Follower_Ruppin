@@ -10,55 +10,63 @@ uint16_t green_light = 0;
 uint16_t blue_light = 0;
 uint8_t proximity_data = 0;
 
-// ir sensor data
+// ir sensor port connection data
 #define R_R_S A2 //ir sensor Right
 #define R_S 2 //ir sensor Right
 #define L_S 4 //ir sensor Left
 #define L_L_S A3 //ir sensor Left
 
+// raw value
 float R_R_Sval;
 float R_Sval;
 float L_Sval;
 float L_L_Sval;
 
-float minR_R_Sval = 9999;
-float minR_Sval = 9999;
-float minL_Sval = 9999;
-float minL_L_Sval = 9999;
-
-float maxR_R_Sval = 0;
-float maxR_Sval = 0;
-float maxL_Sval = 0;
-float maxL_L_Sval = 0;
-
+// adjusted value
 float sensorValueR_R_S;
 float sensorValueR_S;
 float sensorValueL_S;
 float sensorValueL_L_S;
 
+// min value
+float minR_R_Sval = 9999;
+float minR_Sval = 9999;
+float minL_Sval = 9999;
+float minL_L_Sval = 9999;
+
+// max value
+float maxR_R_Sval = 0;
+float maxR_Sval = 0;
+float maxL_Sval = 0;
+float maxL_L_Sval = 0;
+
+// sensor definitions
 #define SENSOR_MID 380 // sensor on edge of black line
 #define SENSOR_MAX 1000 // sensor in the middle of black
-
 #define PRX_SENSOR_DIST 180 // distance to stop proximity sensor
 
-#define FORWARD_INTERSECTION 1 // all four sensors on black line
-#define TURN_LEFT_90 2 // RRS sensor on black line
-#define TURN_RIGHT_90 3 // LLS sensor on black line
-#define FORWARD 4 //  Two center sensors on black line
-#define TURN_LEFT 5 // Left sensor on black line
-#define TURN_RIGHT 6 // right sensor on black line
+enum MoveType {
+  FORWARD_INTERSECTION,
+  TURN_LEFT_90,
+  TURN_RIGHT_90,
+  FORWARD,
+  TURN_LEFT,
+  TURN_RIGHT
+};
 
-#define RRS 0 // LLS sensor on black line
-#define RS 1 //  Two center sensors on black line
-#define LS 2 // Left sensor on black line
-#define LLS 3 // right sensor on black line
+#define CALIB_TIME 250 // loops of calibration
 
-#define CALIB_TIME 250 // sensor on edge of black line
+int lastDirection = 1; // 0 left 1 right : saved last direction
 
-int lastDirection = 1; // 0 left 1 right
 int lastSesorStatus[4] = {0};
+enum SensorType {
+  RRS,
+  RS, 
+  LS,
+  LLS
+};
 
-// motor data
+// motor port connection data
 int motorADirection = 12;
 int motorABrake = 9;
 int motorASpeed = 3;
@@ -67,16 +75,20 @@ int motorBBrake = 8;
 int motorBSpeed = 11;
 
 // RGB Led data
-#define RED 90
-#define GREEN 91
-#define BLUE 92
-#define WHITE 93
-#define BLACK 94
+enum ColorType {
+  RED,
+  GREEN, 
+  BLUE,
+  WHITE,
+  BLACK
+};
 
+// led connection data
 int ledRed = 5; 
 int ledGreen = 6;  
 int ledBlue = 10;
 
+// set these to get serial print of data, on real run disable these
 int debug = 1; // set to 1 if serial debug output needed
 int debugDrv = 1;
 int debugSens = 0;
@@ -100,12 +112,10 @@ void setup() {
 }
 
 void loop() {
+  checkProximity();
+  checkColor();
   getDataFromSensors();
   steerCar();
-
-  checkProximity();
-
-  checkColor();
 }
 
 void checkProximity()
@@ -126,9 +136,11 @@ void checkColor()
   apds.readGreenLight(green_light);
   apds.readGreenLight(blue_light);
   if(debugLit){Serial.print("red_light: ");Serial.print(red_light);
-  Serial.print(" green_light: ");Serial.print(green_light);
-  Serial.print(" blue_light: ");Serial.print(blue_light);
-  Serial.println();}
+                Serial.print(" green_light: ");Serial.print(green_light);
+                Serial.print(" blue_light: ");Serial.print(blue_light);
+                Serial.println();}
+
+  // display the brightest color caught
   if (  red_light > green_light && red_light > blue_light)
   {
     activateRGB(RED);
@@ -145,22 +157,25 @@ void checkColor()
 
 void getDataFromSensors()
 {
-  // put your main code here, to run repeatedly:
+  // read sensors
   R_R_Sval = analogRead(R_R_S);
   R_Sval = digitalRead(R_S);
   L_Sval = digitalRead(L_S);
   L_L_Sval = analogRead(L_L_S);
 
+  // pass data to sensor adjusted
   sensorValueR_R_S = R_R_Sval;
   sensorValueR_S = R_Sval;
   sensorValueL_S = L_Sval;
   sensorValueL_L_S = L_L_Sval;
-  
+
+  // adjust sensor data
   sensorValueR_R_S = map(R_R_Sval, minR_R_Sval, maxR_R_Sval,0,SENSOR_MAX);
   //sensorValueR_S = map(R_Sval, minR_Sval, maxR_Sval,0,SENSOR_MAX);
   //sensorValueL_S = map(L_Sval, minL_Sval, maxL_Sval,0,SENSOR_MAX);
   sensorValueL_L_S = map(L_L_Sval, minL_L_Sval, maxL_L_Sval,0,SENSOR_MAX);
 
+  // fix if lower than 0 and greater than max
   if(sensorValueR_R_S < 0){sensorValueR_R_S = 0;}
   if(sensorValueR_R_S > SENSOR_MAX) {sensorValueR_R_S = SENSOR_MAX;}
   if(sensorValueL_L_S < 0){sensorValueL_L_S = 0;}
@@ -171,22 +186,23 @@ void manual_calibration()
 {
   activateRGB(BLACK);
   delay(1000);
-  
+
+  // blink lights to signify calibration start
   for(int i = 0; i<5; i++){
-    activateRGB(RED);
-    delay(100);
     activateRGB(GREEN);
     delay(100);
     activateRGB(BLUE);
     delay(100);
   }
-  
+
+  // set digital sensor max min
   minR_Sval = 0;
   maxR_Sval = 1;
   minL_Sval = 0;
   maxL_Sval = 1;
   
-  
+
+  // set analog sensor max min
   int i;
   for (i = 0; i < CALIB_TIME; i++)  // make the calibration take about 5 seconds
   {
@@ -214,29 +230,33 @@ void manual_calibration()
     
   }
 
+  // blink lights to signify calibration end
   for(int i = 0; i<5; i++){
     activateRGB(BLUE);
-    delay(100);
-    activateRGB(GREEN);
     delay(100);
     activateRGB(RED);
     delay(100);
   }
-  
+
+  // show white light to signify end of calibration
   activateRGB(WHITE);
+  delay(1000);
 }
 
 void steerCar()
 {
 
+  // if close to object stop
   if(proximity_data > PRX_SENSOR_DIST){
-    if(debugDrv){Serial.println("proximity close stop");}
+    if(debugDrv){Serial.print("proximity close stop: "); Serial.println(proximity_data);}
     Stop();
   }
   else
   {
+    
     if(debugSens){Serial.print(" RRS: "); Serial.print(sensorValueR_R_S); Serial.print(" LLS: "); Serial.print(sensorValueL_L_S); Serial.println();}
 
+    // all sensors show nothing
     if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
     { 
       // before empty space only center sensors were on black line
@@ -247,6 +267,8 @@ void steerCar()
         forward();
       }
       else{
+        // if robot most left or most right sensor touched black but the sensor next to it didnt, make a wide turn instead of 90 degree turn
+        // this is to avoid start spinning when on dashed line
         if(lastDirection == TURN_LEFT_90)
         {
           if(!lastSesorStatus[LS])
@@ -266,76 +288,86 @@ void steerCar()
       }
     }
     // LLS and RRS have priority. If they see something they must turn towards it
+    
     else if(sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
     {
+      // this is an intersection
       if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        forward(); 
-        if(debugDrv){Serial.println("forward intersection");}
         
-        lastDirection = FORWARD_INTERSECTION;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
-        
-      }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
-      if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        turn90Left(); 
-        if(debugDrv){Serial.println("turn 90 Left");}
-        
-        lastDirection = TURN_LEFT_90;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
-        
-        
-      } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
-      if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
-        turn90Right(); 
-        if(debugDrv){Serial.println("turn 90 Right");}
-        
-        lastDirection = TURN_RIGHT_90;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
-        
-      }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
+        moveCar(FORWARD_INTERSECTION, String("forward intersection"));
+
+      }   
+      // this is for 90 degree turn left
+      else if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
+
+        moveCar(TURN_LEFT_90, String("turn 90 Left"));
+
+      }
+      
+      // this is for 90 degree turn right
+      else if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
+
+        moveCar(TURN_RIGHT_90, String("turn 90 Right"));
+     
+      }
     }
     else{
+      // both center sennsors are on black, go forward
       if((sensorValueR_S)&&(sensorValueL_S)){
-        forward(); 
-        if(debugDrv){Serial.println("forward");}
-        StartTime = millis();
 
-        lastDirection = FORWARD;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        moveCar(FORWARD, String("forward"));
         
-      }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
-      if((!sensorValueR_S)&&(sensorValueL_S)){
-        turnLeft(); 
-        StartTime = millis();
-        lastDirection = TURN_LEFT;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+      }   
+      // left on black, turn left
+      else if((!sensorValueR_S)&&(sensorValueL_S)){
         
-        if(debugDrv){Serial.println("turnLeft");}
-      } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
-      if((sensorValueR_S)&&(!sensorValueL_S)){
-        turnRight(); 
-        if(debugDrv){Serial.println("turnRight");}
-        StartTime = millis();
-        lastDirection = TURN_RIGHT;
-        setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+        moveCar(TURN_LEFT, String("turn left"));
+
+      }   
+      // right on black, turn right
+      else if((sensorValueR_S)&&(!sensorValueL_S)){
         
-      }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
+        moveCar(TURN_RIGHT, String("turn Right"));
+        
+      }
     }
   }
 }
 
-void forward(){  //forword
-
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+void moveCar(MoveType mt, String name)
+{
+  switch (mt) {
+    case FORWARD_INTERSECTION:
+        forward();
+      break;
+    case TURN_LEFT_90:
+        turn90Left();
+      break;
+    case TURN_RIGHT_90:
+      turn90Right();
+    break;
+    case FORWARD:
+      forward();
+    break;
+    case TURN_LEFT:
+      turnLeft();
+    break;
+    case TURN_RIGHT:
+      turnRight();
+    break;
+    default:
+      forward();
+      break;
+  }
   
+  if(debugDrv){Serial.println(name);}
+  
+  lastDirection = mt;
+  setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+}
+
+void forward(){  //forword
+  controlMotors(HIGH, LOW, 125,HIGH, LOW, 125);
 }
 
 void forwardStrong(int millis)
@@ -345,85 +377,43 @@ void forwardStrong(int millis)
 }
 
 void turnRight(){ //turnRight
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 30);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+  controlMotors(HIGH, LOW, 30,HIGH, LOW, 125);
 }
 
 void turn90Right(){ //turn90Right
-  //Motor A
-  digitalWrite(motorADirection, LOW); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 30);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+  controlMotors(LOW, LOW, 30,HIGH, LOW, 125);
 }
 
 void turnWideRight(){ //turnWideRight
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 90);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+  controlMotors(HIGH, LOW, 90,HIGH, LOW, 125);
 }
-void turnLeft(){ //turnLeft
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
 
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 30);    //Spins the motor on Channel B at half speed
+void turnLeft(){ //turnLeft
+  controlMotors(HIGH, LOW, 125,HIGH, LOW, 30);
 }
 
 void turn90Left(){ //turn90Left
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, LOW);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 30);    //Spins the motor on Channel B at half speed
+  controlMotors(HIGH, LOW, 125,LOW, LOW, 30);
 }
 
 void turnWideLeft(){ //turnWideLeft
-  //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
-
-  //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 90);    //Spins the motor on Channel B at half speed
+  controlMotors(HIGH, LOW, 125,HIGH, LOW, 90);
 }
 void Stop(){ //stop
+  controlMotors(HIGH, HIGH, 0,HIGH, HIGH, 0);
+}
+
+void controlMotors(int ADirection, int ABrake, int ASpeed,int BDirection, int BBrake, int BSpeed)
+{
   //Motor A
-  digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
-  digitalWrite(motorABrake, HIGH);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 0);   //Spins the motor on Channel A at full speed
+  digitalWrite(motorADirection, ADirection); //Establishes forward direction of Channel A
+  digitalWrite(motorABrake, ABrake);   //Disengage the Brake for Channel A
+  analogWrite(motorASpeed, ASpeed);   //Spins the motor on Channel A at full speed
 
   //Motor B
-  digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
-  digitalWrite(motorBBrake, HIGH);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 0);    //Spins the motor on Channel B at half speed
+  digitalWrite(motorBDirection, BDirection);  //Establishes backward direction of Channel B
+  digitalWrite(motorBBrake, BBrake);   //Disengage the Brake for Channel B
+  analogWrite(motorBSpeed, BSpeed);    //Spins the motor on Channel B at half speed
 }
 
 void setupAPDS()
@@ -490,6 +480,7 @@ void activateRGB(int color)
   }
 }
 
+// save last sensor data
 void setSensorStatus(int lls, int ls, int rs, int rrs)
 {
   // set status only if sensors have changed
