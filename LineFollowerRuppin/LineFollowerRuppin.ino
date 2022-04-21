@@ -11,9 +11,9 @@ uint16_t blue_light = 0;
 uint8_t proximity_data = 0;
 
 // ir sensor data
-#define R_R_S 2 //ir sensor Right
-#define R_S 4 //ir sensor Right
-#define L_S A2 //ir sensor Left
+#define R_R_S A2 //ir sensor Right
+#define R_S 2 //ir sensor Right
+#define L_S 4 //ir sensor Left
 #define L_L_S A3 //ir sensor Left
 
 float R_R_Sval;
@@ -36,6 +36,25 @@ float sensorValueR_S;
 float sensorValueL_S;
 float sensorValueL_L_S;
 
+#define SENSOR_MID 380 // sensor on edge of black line
+#define SENSOR_MAX 1000 // sensor in the middle of black
+
+#define PRX_SENSOR_DIST 180 // distance to stop proximity sensor
+
+#define FORWARD_INTERSECTION 1 // all four sensors on black line
+#define TURN_LEFT_90 2 // RRS sensor on black line
+#define TURN_RIGHT_90 3 // LLS sensor on black line
+#define FORWARD 4 //  Two center sensors on black line
+#define TURN_LEFT 5 // Left sensor on black line
+#define TURN_RIGHT 6 // right sensor on black line
+
+#define RRS 0 // LLS sensor on black line
+#define RS 1 //  Two center sensors on black line
+#define LS 2 // Left sensor on black line
+#define LLS 3 // right sensor on black line
+
+#define CALIB_TIME 250 // sensor on edge of black line
+
 int lastDirection = 1; // 0 left 1 right
 int lastSesorStatus[4] = {0};
 
@@ -51,13 +70,19 @@ int motorBSpeed = 11;
 #define RED 90
 #define GREEN 91
 #define BLUE 92
+#define WHITE 93
+#define BLACK 94
 
 int ledRed = 5; 
 int ledGreen = 6;  
 int ledBlue = 10;
 
-int debug = 0; // set to 1 if serial debug output needed
-int debug2 = 0;
+int debug = 1; // set to 1 if serial debug output needed
+int debugDrv = 1;
+int debugSens = 0;
+int debugLit = 0;
+int debugPrx = 0;
+int debugClb = 0;
 
 // time
 unsigned long StartTime;
@@ -87,10 +112,10 @@ void checkProximity()
 {
   // Read the proximity value
   if ( !apds.readProximity(proximity_data) ) {
-    if(debug){Serial.println("Error reading proximity value");}
+    if(debugPrx){Serial.println("Error reading proximity value");}
   } else {
-    if(debug){Serial.print("Proximity: ");}
-    if(debug){Serial.println(proximity_data);}
+    if(debugPrx){Serial.print("Proximity: ");}
+    if(debugPrx){Serial.println(proximity_data);}
   }
 }
 
@@ -100,7 +125,7 @@ void checkColor()
   apds.readRedLight(red_light);
   apds.readGreenLight(green_light);
   apds.readGreenLight(blue_light);
-  if(debug){Serial.print("red_light: ");Serial.print(red_light);
+  if(debugLit){Serial.print("red_light: ");Serial.print(red_light);
   Serial.print(" green_light: ");Serial.print(green_light);
   Serial.print(" blue_light: ");Serial.print(blue_light);
   Serial.println();}
@@ -121,36 +146,64 @@ void checkColor()
 void getDataFromSensors()
 {
   // put your main code here, to run repeatedly:
-  R_R_Sval = digitalRead(R_R_S);
+  R_R_Sval = analogRead(R_R_S);
   R_Sval = digitalRead(R_S);
   L_Sval = digitalRead(L_S);
-  L_L_Sval = digitalRead(L_L_S);
+  L_L_Sval = analogRead(L_L_S);
 
-  sensorValueR_R_S = map(R_R_Sval, minR_R_Sval, maxR_R_Sval,0,1000);
-  sensorValueR_S = map(R_Sval, minR_Sval, maxR_Sval,0,1000);
-  sensorValueL_S = map(L_Sval, minL_Sval, maxL_Sval,0,1000);
-  sensorValueL_L_S = map(L_L_Sval, minL_L_Sval, maxL_L_Sval,0,1000);
+  sensorValueR_R_S = R_R_Sval;
+  sensorValueR_S = R_Sval;
+  sensorValueL_S = L_Sval;
+  sensorValueL_L_S = L_L_Sval;
+  
+  sensorValueR_R_S = map(R_R_Sval, minR_R_Sval, maxR_R_Sval,0,SENSOR_MAX);
+  //sensorValueR_S = map(R_Sval, minR_Sval, maxR_Sval,0,SENSOR_MAX);
+  //sensorValueL_S = map(L_Sval, minL_Sval, maxL_Sval,0,SENSOR_MAX);
+  sensorValueL_L_S = map(L_L_Sval, minL_L_Sval, maxL_L_Sval,0,SENSOR_MAX);
+
+  if(sensorValueR_R_S < 0){sensorValueR_R_S = 0;}
+  if(sensorValueR_R_S > SENSOR_MAX) {sensorValueR_R_S = SENSOR_MAX;}
+  if(sensorValueL_L_S < 0){sensorValueL_L_S = 0;}
+  if(sensorValueL_L_S > SENSOR_MAX){sensorValueL_L_S = SENSOR_MAX;}
 }
 
 void manual_calibration()
 {
+  activateRGB(BLACK);
+  delay(1000);
+  
+  for(int i = 0; i<5; i++){
+    activateRGB(RED);
+    delay(100);
+    activateRGB(GREEN);
+    delay(100);
+    activateRGB(BLUE);
+    delay(100);
+  }
+  
+  minR_Sval = 0;
+  maxR_Sval = 1;
+  minL_Sval = 0;
+  maxL_Sval = 1;
+  
+  
   int i;
-  for (i = 0; i < 50; i++)  // make the calibration take about 5 seconds
+  for (i = 0; i < CALIB_TIME; i++)  // make the calibration take about 5 seconds
   {
-    R_R_Sval = digitalRead(R_R_S);
+    R_R_Sval = analogRead(R_R_S);
     if(R_R_Sval < minR_R_Sval){minR_R_Sval = R_R_Sval;}
     if(R_R_Sval > maxR_R_Sval){maxR_R_Sval = R_R_Sval;}
-    R_Sval = digitalRead(R_S);
-    if(R_Sval < minR_Sval){minR_Sval = R_Sval;}
-    if(R_Sval > maxR_Sval){maxR_Sval = R_Sval;}
-    L_Sval = digitalRead(L_S);
-    if(L_Sval < minL_Sval){minL_Sval = L_Sval;}
-    if(L_Sval > maxL_Sval){maxL_Sval = L_Sval;}
-    L_L_Sval = digitalRead(L_L_S);
+//    R_Sval = digitalRead(R_S);
+//    if(R_Sval < minR_Sval){minR_Sval = R_Sval;}
+//    if(R_Sval > maxR_Sval){maxR_Sval = R_Sval;}
+//    L_Sval = digitalRead(L_S);
+//    if(L_Sval < minL_Sval){minL_Sval = L_Sval;}
+//    if(L_Sval > maxL_Sval){maxL_Sval = L_Sval;}
+    L_L_Sval = analogRead(L_L_S);
     if(L_L_Sval < minL_L_Sval){minL_L_Sval = L_L_Sval;}
     if(L_L_Sval > maxL_L_Sval){maxL_L_Sval = L_L_Sval;}
 
-    if(debug){
+    if(debugClb){
       Serial.print("calib R_R_Sval min: "); Serial.print(minR_R_Sval);  Serial.print(" max: "); Serial.print(maxR_R_Sval); Serial.println();
       Serial.print(" calib R_Sval min: "); Serial.print(minR_Sval);    Serial.print(" max: "); Serial.print(maxR_Sval); Serial.println();
       Serial.print(" calib L_Sval min: "); Serial.print(minL_Sval);  Serial.print(" max: ");   Serial.print(maxL_Sval); Serial.println();
@@ -160,71 +213,83 @@ void manual_calibration()
     delay(20);
     
   }
+
+  for(int i = 0; i<5; i++){
+    activateRGB(BLUE);
+    delay(100);
+    activateRGB(GREEN);
+    delay(100);
+    activateRGB(RED);
+    delay(100);
+  }
+  
+  activateRGB(WHITE);
 }
 
 void steerCar()
 {
 
-  if(proximity_data > 200){
-    if(debug){Serial.println("proximity close stop");}
+  if(proximity_data > PRX_SENSOR_DIST){
+    if(debugDrv){Serial.println("proximity close stop");}
     Stop();
   }
   else
   {
-    //Serial.print(sensorValueR_S); Serial.print(" "); Serial.print(sensorValueL_S); Serial.println();
+    if(debugSens){Serial.print(" RRS: "); Serial.print(sensorValueR_R_S); Serial.print(" LLS: "); Serial.print(sensorValueL_L_S); Serial.println();}
 
-    if(!sensorValueR_S && !sensorValueL_S && !sensorValueR_R_S && !sensorValueL_L_S)
+    if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
     { 
-      
-      // reached empty space
-      if(lastDirection > 3)
+      // before empty space only center sensors were on black line
+      // so go forward
+      if(lastDirection > TURN_RIGHT_90)
       {
-        CurrentTime = millis();
-        ElapsedTime = CurrentTime - StartTime;
-        // go forward until you see nothing happens then go back
-        if(ElapsedTime > 1000)
+        if(debugDrv){Serial.println("go forward");}
+        forward();
+      }
+      else{
+        if(lastDirection == TURN_LEFT_90)
         {
-          if(lastDirection == 5)
+          if(!lastSesorStatus[LS])
           {
+            if(debugDrv){Serial.println("turn wide left");}
             turnWideLeft();
           }
-          else if(lastDirection == 6)
+        }
+        else if(lastDirection == TURN_RIGHT_90)
+        {
+          if(!lastSesorStatus[RS])
           {
+            if(debugDrv){Serial.println("turn wide right");}
             turnWideRight();
           }
-        }
-        else
-        {
-          if(debug){Serial.println("go forward");}
-          forward();
         }
       }
     }
     // LLS and RRS have priority. If they see something they must turn towards it
-    else if(sensorValueR_R_S || sensorValueL_L_S)
+    else if(sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
     {
-      if((sensorValueR_R_S)&&(sensorValueL_L_S)){
+      if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
         forward(); 
-        if(debug){Serial.println("forward intersection");}
+        if(debugDrv){Serial.println("forward intersection");}
         
-        lastDirection = 1;
+        lastDirection = FORWARD_INTERSECTION;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
       }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
-      if((!sensorValueR_R_S)&&(sensorValueL_L_S)){
+      if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
         turn90Left(); 
-        if(debug){Serial.println("turn 90 Left");}
+        if(debugDrv){Serial.println("turn 90 Left");}
         
-        lastDirection = 2;
+        lastDirection = TURN_LEFT_90;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
         
       } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
-      if((sensorValueR_R_S)&&(!sensorValueL_L_S)){
+      if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
         turn90Right(); 
-        if(debug){Serial.println("turn 90 Right");}
+        if(debugDrv){Serial.println("turn 90 Right");}
         
-        lastDirection = 3;
+        lastDirection = TURN_RIGHT_90;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
       }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
@@ -232,26 +297,26 @@ void steerCar()
     else{
       if((sensorValueR_S)&&(sensorValueL_S)){
         forward(); 
-        if(debug){Serial.println("forward");}
+        if(debugDrv){Serial.println("forward");}
         StartTime = millis();
 
-        lastDirection = 4;
+        lastDirection = FORWARD;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
       }   //if Right Sensor and Left Sensor are at Black color then it will call forword function
       if((!sensorValueR_S)&&(sensorValueL_S)){
         turnLeft(); 
         StartTime = millis();
-        lastDirection = 5;
+        lastDirection = TURN_LEFT;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
-        if(debug){Serial.println("turnLeft");}
+        if(debugDrv){Serial.println("turnLeft");}
       } //if Right Sensor is Black and Left Sensor is White then it will call turn Right function  
       if((sensorValueR_S)&&(!sensorValueL_S)){
         turnRight(); 
-        if(debug){Serial.println("turnRight");}
+        if(debugDrv){Serial.println("turnRight");}
         StartTime = millis();
-        lastDirection = 6;
+        lastDirection = TURN_RIGHT;
         setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
         
       }  //if Right Sensor is White and Left Sensor is Black then it will call turn Left function
@@ -307,7 +372,7 @@ void turnWideRight(){ //turnWideRight
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 90);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
@@ -342,12 +407,12 @@ void turnWideLeft(){ //turnWideLeft
   //Motor A
   digitalWrite(motorADirection, HIGH); //Establishes forward direction of Channel A
   digitalWrite(motorABrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(motorASpeed, 50);   //Spins the motor on Channel A at full speed
+  analogWrite(motorASpeed, 125);   //Spins the motor on Channel A at full speed
 
   //Motor B
   digitalWrite(motorBDirection, HIGH);  //Establishes backward direction of Channel B
   digitalWrite(motorBBrake, LOW);   //Disengage the Brake for Channel B
-  analogWrite(motorBSpeed, 125);    //Spins the motor on Channel B at half speed
+  analogWrite(motorBSpeed, 90);    //Spins the motor on Channel B at half speed
 }
 void Stop(){ //stop
   //Motor A
@@ -411,19 +476,31 @@ void activateRGB(int color)
     analogWrite(ledGreen,0);  
     analogWrite(ledBlue,255);
   }
+  else if(color == WHITE)
+  {
+    analogWrite(ledRed,255); 
+    analogWrite(ledGreen,255);  
+    analogWrite(ledBlue,255);
+  }
+  else if(color == BLACK)
+  {
+    analogWrite(ledRed,0); 
+    analogWrite(ledGreen,0);  
+    analogWrite(ledBlue,0);
+  }
 }
 
 void setSensorStatus(int lls, int ls, int rs, int rrs)
 {
   // set status only if sensors have changed
-  if(lastSesorStatus[0] != sensorValueR_R_S ||
-      lastSesorStatus[1] != sensorValueR_S ||
-      lastSesorStatus[2] != sensorValueL_S ||
-      lastSesorStatus[3] != sensorValueL_L_S)
+  if(lastSesorStatus[RRS] != rrs ||
+      lastSesorStatus[RS] != rs ||
+      lastSesorStatus[LS] != ls ||
+      lastSesorStatus[LLS] != lls)
       {
-        lastSesorStatus[0] = sensorValueR_R_S;
-        lastSesorStatus[1] = sensorValueR_S;
-        lastSesorStatus[2] = sensorValueL_S;
-        lastSesorStatus[3] = sensorValueL_L_S;
+        lastSesorStatus[RRS] = rrs;
+        lastSesorStatus[RS] = rs;
+        lastSesorStatus[LS] = ls;
+        lastSesorStatus[LLS] = lls;
       }
 }
