@@ -90,11 +90,12 @@ int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
 int debug = 1; // set to 1 if serial debug output needed
-int debugDrv = 1;
+int debugDrv = 0;
 int debugSens = 0;
 int debugLit = 0;
 int debugPrx = 0;
 int debugClb = 0;
+int debugLedDrv = 1;
 
 // time
 unsigned long StartTime;
@@ -109,11 +110,12 @@ void setup() {
 
   manual_calibration();
   setupAPDS();
+
 }
 
 void loop() {
-  checkProximity();
-  checkColor();
+  //checkProximity();
+  //checkColor();
   getDataFromSensors();
   steerCar();
 }
@@ -259,33 +261,8 @@ void steerCar()
     // all sensors show nothing
     if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
     { 
-      // before empty space only center sensors were on black line
-      // so go forward
-      if(lastDirection > TURN_RIGHT_90)
-      {
-        if(debugDrv){Serial.println("go forward");}
-        forward();
-      }
-      else{
-        // if robot most left or most right sensor touched black but the sensor next to it didnt, make a wide turn instead of 90 degree turn
-        // this is to avoid start spinning when on dashed line
-        if(lastDirection == TURN_LEFT_90)
-        {
-          if(!lastSesorStatus[LS])
-          {
-            if(debugDrv){Serial.println("turn wide left");}
-            turnWideLeft();
-          }
-        }
-        else if(lastDirection == TURN_RIGHT_90)
-        {
-          if(!lastSesorStatus[RS])
-          {
-            if(debugDrv){Serial.println("turn wide right");}
-            turnWideRight();
-          }
-        }
-      }
+      if(debugLedDrv){activateRGB(WHITE);}
+      handleWhiteSpace();
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     
@@ -293,20 +270,20 @@ void steerCar()
     {
       // this is an intersection
       if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        
+        if(debugLedDrv){activateRGB(RED);}
         moveCar(FORWARD_INTERSECTION, String("forward intersection"));
 
       }   
       // this is for 90 degree turn left
       else if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-
+        if(debugLedDrv){activateRGB(GREEN);}
         moveCar(TURN_LEFT_90, String("turn 90 Left"));
 
       }
       
       // this is for 90 degree turn right
       else if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
-
+        if(debugLedDrv){activateRGB(BLUE);}
         moveCar(TURN_RIGHT_90, String("turn 90 Right"));
      
       }
@@ -314,24 +291,75 @@ void steerCar()
     else{
       // both center sennsors are on black, go forward
       if((sensorValueR_S)&&(sensorValueL_S)){
-
+        if(debugLedDrv){activateRGBCode(0,255,255);}// cyan
         moveCar(FORWARD, String("forward"));
         
       }   
       // left on black, turn left
       else if((!sensorValueR_S)&&(sensorValueL_S)){
-        
+        if(debugLedDrv){activateRGBCode(255,0,255);} //magenta
         moveCar(TURN_LEFT, String("turn left"));
 
       }   
       // right on black, turn right
       else if((sensorValueR_S)&&(!sensorValueL_S)){
-        
+        if(debugLedDrv){activateRGBCode(255,255,0);} //yellow
         moveCar(TURN_RIGHT, String("turn Right"));
         
       }
     }
   }
+}
+
+void handleWhiteSpace()
+{
+  // before empty space only center sensors were on black line
+  // so go forward
+  if(lastDirection > TURN_RIGHT_90)
+  {
+    if(debugDrv){Serial.println("go forward");}
+    forward();
+    
+  }
+  else{
+    if(debugLedDrv){
+      activateRGBCode(170,0,255); // purple
+    }
+    // look for black up ahead
+    bool foundBlack = inspectWhiteSpace(true);
+    if(!foundBlack)
+    {
+      // go back to black
+      inspectWhiteSpace(false);
+    }
+  }
+}
+
+bool inspectWhiteSpace(bool goForward)
+{
+  // go forward to inspect until black found for 10 times
+  bool foundBlack = false;
+  for(int i = 0; i < 10 && !foundBlack; i++)
+  {
+
+    // go forwards or backwards
+    if(goForward){forward();}
+    else{backup();}
+    delay(100);
+
+    // stop 
+    Stop();
+    
+    //check sensors
+    getDataFromSensors();
+    
+    // if found black return info
+    if(sensorValueR_S || sensorValueL_S || sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
+    {
+      foundBlack = true;
+    }
+  }
+  return foundBlack;
 }
 
 void moveCar(MoveType mt, String name)
@@ -381,7 +409,7 @@ void turnRight(){ //turnRight
 }
 
 void turn90Right(){ //turn90Right
-  controlMotors(LOW, LOW, 30,HIGH, LOW, 125);
+  controlMotors(LOW, LOW, 30,HIGH, LOW, 180);
 }
 
 void turnWideRight(){ //turnWideRight
@@ -393,7 +421,7 @@ void turnLeft(){ //turnLeft
 }
 
 void turn90Left(){ //turn90Left
-  controlMotors(HIGH, LOW, 125,LOW, LOW, 30);
+  controlMotors(HIGH, LOW, 180,LOW, LOW, 30);
 }
 
 void turnWideLeft(){ //turnWideLeft
@@ -401,6 +429,9 @@ void turnWideLeft(){ //turnWideLeft
 }
 void Stop(){ //stop
   controlMotors(HIGH, HIGH, 0,HIGH, HIGH, 0);
+}
+void backup(){ //backup
+  controlMotors(LOW, LOW, 125,LOW, LOW, 125);
 }
 
 void controlMotors(int ADirection, int ABrake, int ASpeed,int BDirection, int BBrake, int BSpeed)
@@ -443,6 +474,13 @@ void setupAPDS()
   } else {
     if(debug){Serial.println(F("Something went wrong during sensor init!"));}
   }
+}
+
+void activateRGBCode(int red, int green, int blue)
+{
+  analogWrite(ledRed,red); 
+  analogWrite(ledGreen,green);  
+  analogWrite(ledBlue,blue);
 }
 
 void activateRGB(int color)
