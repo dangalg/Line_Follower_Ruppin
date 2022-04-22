@@ -318,7 +318,6 @@ void handleWhiteSpace()
     if(debugLedDrv){activateRGB(RED);}
     // ram detected black so go forward
     forward();
-    delay(200);
   }
   else if(lastDirection > TURN_RIGHT_90)
   {
