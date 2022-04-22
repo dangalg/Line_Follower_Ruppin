@@ -317,20 +317,34 @@ void handleWhiteSpace()
   // so go forward
   if(lastDirection > TURN_RIGHT_90)
   {
-    if(debugDrv){Serial.println("go forward");}
-    forward();
-    
-  }
-  else{
-    if(debugLedDrv){
-      activateRGBCode(170,0,255); // purple
-    }
+    if(debugLedDrv){activateRGBCode(170,0,255);} // purple
     // look for black up ahead
     bool foundBlack = inspectWhiteSpace(true);
     if(!foundBlack)
     {
       // go back to black
       inspectWhiteSpace(false);
+    }
+  }
+  else{
+    if(debugLedDrv){activateRGBCode(85,107,47);} // dark olive green
+    // if robot most left or most right sensor touched black but the sensor next to it didnt, make a wide turn instead of 90 degree turn
+    // this is to avoid start spinning when on dashed line
+    if(lastDirection == TURN_LEFT_90)
+    {
+      if(!lastSesorStatus[LS])
+      {
+        if(debugDrv){Serial.println("turn wide left");}
+        turnWideLeft();
+      }
+    }
+    else if(lastDirection == TURN_RIGHT_90)
+    {
+      if(!lastSesorStatus[RS])
+      {
+        if(debugDrv){Serial.println("turn wide right");}
+        turnWideRight();
+      }
     }
   }
 }
@@ -409,7 +423,7 @@ void turnRight(){ //turnRight
 }
 
 void turn90Right(){ //turn90Right
-  controlMotors(LOW, LOW, 30,HIGH, LOW, 180);
+  controlMotors(LOW, LOW, 30,HIGH, LOW, 150);
 }
 
 void turnWideRight(){ //turnWideRight
@@ -421,7 +435,7 @@ void turnLeft(){ //turnLeft
 }
 
 void turn90Left(){ //turn90Left
-  controlMotors(HIGH, LOW, 180,LOW, LOW, 30);
+  controlMotors(HIGH, LOW, 150,LOW, LOW, 30);
 }
 
 void turnWideLeft(){ //turnWideLeft
