@@ -96,9 +96,9 @@ int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
 int debug = 1; // set to 1 if serial debug output needed
-int debugDrv = 0;
+int debugDrv = 1;
 int debugSens = 0;
-int debugLit = 1;
+int debugLit = 0;
 int debugPrx = 0;
 int debugClb = 0;
 int debugLedDrv = 0;
@@ -313,7 +313,7 @@ void steerCar()
 void handleWhiteSpace()
 {
   
-  if(lastSesorStatus[CS])
+  if(sensorValueC_S)
   {
     if(debugLedDrv){activateRGB(RED);}
     // ram detected black so go forward
