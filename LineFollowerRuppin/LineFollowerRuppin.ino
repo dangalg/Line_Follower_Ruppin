@@ -95,13 +95,13 @@ int ledGreen = 6;
 int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
-int debug = 1; // set to 1 if serial debug output needed
+int debug = 0; // set to 1 if serial debug output needed
 int debugDrv = 0;
 int debugSens = 0;
 int debugLit = 0;
 int debugPrx = 0;
 int debugClb = 0;
-int debugLedDrv = 1;
+int debugLedDrv = 0;
 
 // time
 unsigned long StartTime;
@@ -121,7 +121,7 @@ void setup() {
 
 void loop() {
   checkProximity();
-  //checkColor();
+  checkColor();
   getDataFromSensors();
   steerCar();
 }
