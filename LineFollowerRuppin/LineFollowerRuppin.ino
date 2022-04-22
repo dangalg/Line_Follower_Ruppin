@@ -95,10 +95,10 @@ int ledGreen = 6;
 int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
-int debug = 0; // set to 1 if serial debug output needed
+int debug = 1; // set to 1 if serial debug output needed
 int debugDrv = 0;
 int debugSens = 0;
-int debugLit = 0;
+int debugLit = 1;
 int debugPrx = 0;
 int debugClb = 0;
 int debugLedDrv = 0;
@@ -142,7 +142,7 @@ void checkColor()
   // Read the light levels (ambient, red, green, blue)
   apds.readRedLight(red_light);
   apds.readGreenLight(green_light);
-  apds.readGreenLight(blue_light);
+  apds.readBlueLight(blue_light);
   if(debugLit){Serial.print("red_light: ");Serial.print(red_light);
                 Serial.print(" green_light: ");Serial.print(green_light);
                 Serial.print(" blue_light: ");Serial.print(blue_light);
