@@ -13,31 +13,36 @@ uint8_t proximity_data = 0;
 // ir sensor port connection data
 #define R_R_S A2 //ir sensor Right
 #define R_S 2 //ir sensor Right
+#define C_S 7 //ir sensor center (the ram)
 #define L_S 4 //ir sensor Left
 #define L_L_S A3 //ir sensor Left
 
 // raw value
 float R_R_Sval;
 float R_Sval;
+float C_Sval;
 float L_Sval;
 float L_L_Sval;
 
 // adjusted value
 float sensorValueR_R_S;
 float sensorValueR_S;
+float sensorValueC_S;
 float sensorValueL_S;
 float sensorValueL_L_S;
 
 // min value
 float minR_R_Sval = 9999;
-float minR_Sval = 9999;
-float minL_Sval = 9999;
+float minR_Sval = 0;
+float minC_Sval = 0;
+float minL_Sval = 0;
 float minL_L_Sval = 9999;
 
 // max value
 float maxR_R_Sval = 0;
-float maxR_Sval = 0;
-float maxL_Sval = 0;
+float maxR_Sval = 1;
+float maxC_Sval = 1;
+float maxL_Sval = 1;
 float maxL_L_Sval = 0;
 
 // sensor definitions
@@ -58,10 +63,11 @@ enum MoveType {
 
 int lastDirection = 1; // 0 left 1 right : saved last direction
 
-int lastSesorStatus[4] = {0};
+int lastSesorStatus[5] = {0};
 enum SensorType {
   RRS,
   RS, 
+  CS,
   LS,
   LLS
 };
@@ -114,7 +120,7 @@ void setup() {
 }
 
 void loop() {
-  //checkProximity();
+  checkProximity();
   //checkColor();
   getDataFromSensors();
   steerCar();
@@ -162,12 +168,14 @@ void getDataFromSensors()
   // read sensors
   R_R_Sval = analogRead(R_R_S);
   R_Sval = digitalRead(R_S);
+  C_Sval = digitalRead(C_S);
   L_Sval = digitalRead(L_S);
   L_L_Sval = analogRead(L_L_S);
 
   // pass data to sensor adjusted
   sensorValueR_R_S = R_R_Sval;
   sensorValueR_S = R_Sval;
+  sensorValueC_S = C_Sval;
   sensorValueL_S = L_Sval;
   sensorValueL_L_S = L_L_Sval;
 
@@ -211,20 +219,12 @@ void manual_calibration()
     R_R_Sval = analogRead(R_R_S);
     if(R_R_Sval < minR_R_Sval){minR_R_Sval = R_R_Sval;}
     if(R_R_Sval > maxR_R_Sval){maxR_R_Sval = R_R_Sval;}
-//    R_Sval = digitalRead(R_S);
-//    if(R_Sval < minR_Sval){minR_Sval = R_Sval;}
-//    if(R_Sval > maxR_Sval){maxR_Sval = R_Sval;}
-//    L_Sval = digitalRead(L_S);
-//    if(L_Sval < minL_Sval){minL_Sval = L_Sval;}
-//    if(L_Sval > maxL_Sval){maxL_Sval = L_Sval;}
     L_L_Sval = analogRead(L_L_S);
     if(L_L_Sval < minL_L_Sval){minL_L_Sval = L_L_Sval;}
     if(L_L_Sval > maxL_L_Sval){maxL_L_Sval = L_L_Sval;}
 
     if(debugClb){
       Serial.print("calib R_R_Sval min: "); Serial.print(minR_R_Sval);  Serial.print(" max: "); Serial.print(maxR_R_Sval); Serial.println();
-      Serial.print(" calib R_Sval min: "); Serial.print(minR_Sval);    Serial.print(" max: "); Serial.print(maxR_Sval); Serial.println();
-      Serial.print(" calib L_Sval min: "); Serial.print(minL_Sval);  Serial.print(" max: ");   Serial.print(maxL_Sval); Serial.println();
       Serial.print(" calib L_L_Sval min: "); Serial.print(minL_L_Sval);  Serial.print(" max: ");   Serial.print(maxL_L_Sval); Serial.println();
       Serial.println();
     }
@@ -261,7 +261,6 @@ void steerCar()
     // all sensors show nothing
     if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
     { 
-      if(debugLedDrv){activateRGB(WHITE);}
       handleWhiteSpace();
     }
     // LLS and RRS have priority. If they see something they must turn towards it
@@ -270,20 +269,20 @@ void steerCar()
     {
       // this is an intersection
       if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        if(debugLedDrv){activateRGB(RED);}
+        if(debugLedDrv){activateRGB(WHITE);}
         moveCar(FORWARD_INTERSECTION, String("forward intersection"));
 
       }   
       // this is for 90 degree turn left
       else if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        if(debugLedDrv){activateRGB(GREEN);}
+        if(debugLedDrv){activateRGB(WHITE);}
         moveCar(TURN_LEFT_90, String("turn 90 Left"));
 
       }
       
       // this is for 90 degree turn right
       else if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
-        if(debugLedDrv){activateRGB(BLUE);}
+        if(debugLedDrv){activateRGB(WHITE);}
         moveCar(TURN_RIGHT_90, String("turn 90 Right"));
      
       }
@@ -291,19 +290,19 @@ void steerCar()
     else{
       // both center sennsors are on black, go forward
       if((sensorValueR_S)&&(sensorValueL_S)){
-        if(debugLedDrv){activateRGBCode(0,255,255);}// cyan
+        if(debugLedDrv){activateRGB(BLACK);}
         moveCar(FORWARD, String("forward"));
         
       }   
       // left on black, turn left
       else if((!sensorValueR_S)&&(sensorValueL_S)){
-        if(debugLedDrv){activateRGBCode(255,0,255);} //magenta
+        if(debugLedDrv){activateRGB(BLACK);}
         moveCar(TURN_LEFT, String("turn left"));
 
       }   
       // right on black, turn right
       else if((sensorValueR_S)&&(!sensorValueL_S)){
-        if(debugLedDrv){activateRGBCode(255,255,0);} //yellow
+        if(debugLedDrv){activateRGB(BLACK);}
         moveCar(TURN_RIGHT, String("turn Right"));
         
       }
@@ -313,39 +312,23 @@ void steerCar()
 
 void handleWhiteSpace()
 {
-  // before empty space only center sensors were on black line
-  // so go forward
-  if(lastDirection > TURN_RIGHT_90)
+  
+  if(lastSesorStatus[CS])
   {
-    if(debugLedDrv){activateRGBCode(170,0,255);} // purple
-    // look for black up ahead
-    bool foundBlack = inspectWhiteSpace(true);
-    if(!foundBlack)
-    {
-      // go back to black
-      inspectWhiteSpace(false);
-    }
+    if(debugLedDrv){activateRGB(RED);}
+    // ram detected black so go forward
+    forward();
+    delay(200);
+  }
+  else if(lastDirection > TURN_RIGHT_90)
+  {
+    if(debugLedDrv){activateRGB(GREEN);}
+    // before empty space only center sensors were on black line
+    // so go forward
+    forward();
   }
   else{
-    if(debugLedDrv){activateRGBCode(85,107,47);} // dark olive green
-    // if robot most left or most right sensor touched black but the sensor next to it didnt, make a wide turn instead of 90 degree turn
-    // this is to avoid start spinning when on dashed line
-    if(lastDirection == TURN_LEFT_90)
-    {
-      if(!lastSesorStatus[LS])
-      {
-        if(debugDrv){Serial.println("turn wide left");}
-        turnWideLeft();
-      }
-    }
-    else if(lastDirection == TURN_RIGHT_90)
-    {
-      if(!lastSesorStatus[RS])
-      {
-        if(debugDrv){Serial.println("turn wide right");}
-        turnWideRight();
-      }
-    }
+    if(debugLedDrv){activateRGB(BLUE);}
   }
 }
 
@@ -405,7 +388,7 @@ void moveCar(MoveType mt, String name)
   if(debugDrv){Serial.println(name);}
   
   lastDirection = mt;
-  setSensorStatus(sensorValueL_L_S, sensorValueL_S, sensorValueR_S, sensorValueR_R_S);
+  setSensorStatus(sensorValueR_R_S, sensorValueR_S, sensorValueC_S, sensorValueL_S, sensorValueL_L_S);
 }
 
 void forward(){  //forword
@@ -533,16 +516,18 @@ void activateRGB(int color)
 }
 
 // save last sensor data
-void setSensorStatus(int lls, int ls, int rs, int rrs)
+void setSensorStatus(int rrs, int rs, int cs, int ls, int lls)
 {
   // set status only if sensors have changed
   if(lastSesorStatus[RRS] != rrs ||
       lastSesorStatus[RS] != rs ||
+      lastSesorStatus[CS] != cs ||
       lastSesorStatus[LS] != ls ||
       lastSesorStatus[LLS] != lls)
       {
         lastSesorStatus[RRS] = rrs;
         lastSesorStatus[RS] = rs;
+        lastSesorStatus[CS] = cs;
         lastSesorStatus[LS] = ls;
         lastSesorStatus[LLS] = lls;
       }
