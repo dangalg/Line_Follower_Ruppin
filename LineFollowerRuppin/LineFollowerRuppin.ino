@@ -48,7 +48,7 @@ float maxL_L_Sval = 0;
 // sensor definitions
 #define SENSOR_MID 380 // sensor on edge of black line
 #define SENSOR_MAX 1000 // sensor in the middle of black
-#define PRX_SENSOR_DIST 180 // distance to stop proximity sensor
+#define PRX_SENSOR_DIST 130 // distance to stop proximity sensor
 
 enum MoveType {
   FORWARD_INTERSECTION,
@@ -80,6 +80,12 @@ int motorBDirection = 13;
 int motorBBrake = 8;
 int motorBSpeed = 11;
 
+// motor speeds
+#define FAST_SPD 200 //
+#define MED_SPD 160 //
+#define SLOW_SPD 30 //
+#define TURN_SPD 110 //
+
 // RGB Led data
 enum ColorType {
   RED,
@@ -95,8 +101,8 @@ int ledGreen = 6;
 int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
-int debug = 1; // set to 1 if serial debug output needed
-int debugDrv = 1;
+int debug = 0; // set to 1 if serial debug output needed
+int debugDrv = 0;
 int debugSens = 0;
 int debugLit = 0;
 int debugPrx = 0;
@@ -104,9 +110,18 @@ int debugClb = 0;
 int debugLedDrv = 0;
 
 // time
-unsigned long StartTime;
-unsigned long CurrentTime;
-unsigned long ElapsedTime;
+unsigned long StartForwardTime;
+unsigned long CurrentForwardTime;
+unsigned long ElapsedForwardTime;
+
+unsigned long StartBackupTime;
+unsigned long CurrentBackupTime;
+unsigned long ElapsedBackupTime;
+
+#define MAX_BACKUP_TIME 2000 //max backup time
+#define MAX_FORWARD_TIME 2000 //max backup time
+
+
 
 
 void setup() {
@@ -120,10 +135,12 @@ void setup() {
 }
 
 void loop() {
-  checkProximity();
+  //checkProximity();
+  proximity_data = 10;
   checkColor();
   getDataFromSensors();
   steerCar();
+  //forward();
 }
 
 void checkProximity()
@@ -265,46 +282,50 @@ void steerCar()
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     
-    else if(sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
+    else 
     {
-      // this is an intersection
-      if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        if(debugLedDrv){activateRGB(WHITE);}
-        moveCar(FORWARD_INTERSECTION, String("forward intersection"));
-
-      }   
-      // this is for 90 degree turn left
-      else if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
-        if(debugLedDrv){activateRGB(WHITE);}
-        moveCar(TURN_LEFT_90, String("turn 90 Left"));
-
-      }
-      
-      // this is for 90 degree turn right
-      else if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
-        if(debugLedDrv){activateRGB(WHITE);}
-        moveCar(TURN_RIGHT_90, String("turn 90 Right"));
-     
-      }
-    }
-    else{
-      // both center sennsors are on black, go forward
-      if((sensorValueR_S)&&(sensorValueL_S)){
-        if(debugLedDrv){activateRGB(BLACK);}
-        moveCar(FORWARD, String("forward"));
+      StartForwardTime = millis();
+      if(sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
+      {
+        // this is an intersection
+        if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
+          if(debugLedDrv){activateRGB(WHITE);}
+          moveCar(FORWARD_INTERSECTION, String("forward intersection"));
+  
+        }   
+        // this is for 90 degree turn left
+        else if((sensorValueR_R_S < SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
+          if(debugLedDrv){activateRGB(WHITE);}
+          moveCar(TURN_LEFT_90, String("turn 90 Left"));
+  
+        }
         
-      }   
-      // left on black, turn left
-      else if((!sensorValueR_S)&&(sensorValueL_S)){
-        if(debugLedDrv){activateRGB(BLACK);}
-        moveCar(TURN_LEFT, String("turn left"));
-
-      }   
-      // right on black, turn right
-      else if((sensorValueR_S)&&(!sensorValueL_S)){
-        if(debugLedDrv){activateRGB(BLACK);}
-        moveCar(TURN_RIGHT, String("turn Right"));
-        
+        // this is for 90 degree turn right
+        else if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S < SENSOR_MID)){
+          if(debugLedDrv){activateRGB(WHITE);}
+          moveCar(TURN_RIGHT_90, String("turn 90 Right"));
+       
+        }
+      }
+      else{
+        // both center sennsors are on black, go forward
+        if((sensorValueR_S)&&(sensorValueL_S)){
+          if(debugLedDrv){activateRGB(BLACK);}
+          moveCar(FORWARD, String("forward"));
+          
+        }   
+        // left on black, turn left
+        else if((!sensorValueR_S)&&(sensorValueL_S)){
+          if(debugLedDrv){activateRGB(BLACK);}
+          moveCar(TURN_LEFT, String("turn left"));
+  
+        }   
+        // right on black, turn right
+        else if((sensorValueR_S)&&(!sensorValueL_S)){
+          if(debugLedDrv){activateRGB(BLACK);}
+          moveCar(TURN_RIGHT, String("turn Right"));
+          
+        }
       }
     }
   }
@@ -312,22 +333,39 @@ void steerCar()
 
 void handleWhiteSpace()
 {
-  
-  if(sensorValueC_S)
+  CurrentForwardTime = millis();
+  ElapsedForwardTime = CurrentForwardTime - StartForwardTime;
+
+  // if not enough time has passed 
+  if(ElapsedForwardTime < MAX_FORWARD_TIME)
   {
-    if(debugLedDrv){activateRGB(RED);}
-    // ram detected black so go forward
-    forward();
+    if(sensorValueC_S)
+    {
+      if(debugLedDrv){activateRGB(RED);}
+      // ram detected black so go forward
+      forward();
+    }
+    else if(lastDirection > TURN_RIGHT_90)
+    {
+      if(debugLedDrv){activateRGB(GREEN);}
+      // before empty space only center sensors were on black line
+      // so go forward
+      forward();
+    }
+    else{
+      if(debugLedDrv){activateRGB(BLUE);}
+      forward();
+    }
   }
-  else if(lastDirection > TURN_RIGHT_90)
+  // else go back to track
+  else
   {
-    if(debugLedDrv){activateRGB(GREEN);}
-    // before empty space only center sensors were on black line
-    // so go forward
-    forward();
-  }
-  else{
-    if(debugLedDrv){activateRGB(BLUE);}
+//    CurrentBackupTime = millis();
+//    ElapsedBackupTime = CurrentBackupTime - StartBackupTime;
+//    if(ElapsedTime < MAX_BACKUP_TIME)
+//    {
+      backup();
+//    }
   }
 }
 
@@ -391,7 +429,8 @@ void moveCar(MoveType mt, String name)
 }
 
 void forward(){  //forword
-  controlMotors(HIGH, LOW, 125,HIGH, LOW, 125);
+  controlMotors(HIGH, LOW, 100,HIGH, LOW, 115);
+  //controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, MED_SPD);
 }
 
 void forwardStrong(int millis)
@@ -401,33 +440,33 @@ void forwardStrong(int millis)
 }
 
 void turnRight(){ //turnRight
-  controlMotors(HIGH, LOW, 30,HIGH, LOW, 125);
+  controlMotors(HIGH, LOW, SLOW_SPD,HIGH, LOW, MED_SPD);
 }
 
 void turn90Right(){ //turn90Right
-  controlMotors(LOW, LOW, 30,HIGH, LOW, 150);
+  controlMotors(LOW, LOW, SLOW_SPD,HIGH, LOW, FAST_SPD);
 }
 
 void turnWideRight(){ //turnWideRight
-  controlMotors(HIGH, LOW, 90,HIGH, LOW, 125);
+  controlMotors(HIGH, LOW, TURN_SPD,HIGH, LOW, MED_SPD);
 }
 
 void turnLeft(){ //turnLeft
-  controlMotors(HIGH, LOW, 125,HIGH, LOW, 30);
+  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, SLOW_SPD);
 }
 
 void turn90Left(){ //turn90Left
-  controlMotors(HIGH, LOW, 150,LOW, LOW, 30);
+  controlMotors(HIGH, LOW, FAST_SPD,LOW, LOW, SLOW_SPD);
 }
 
 void turnWideLeft(){ //turnWideLeft
-  controlMotors(HIGH, LOW, 125,HIGH, LOW, 90);
+  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, TURN_SPD);
 }
 void Stop(){ //stop
   controlMotors(HIGH, HIGH, 0,HIGH, HIGH, 0);
 }
 void backup(){ //backup
-  controlMotors(LOW, LOW, 125,LOW, LOW, 125);
+  controlMotors(LOW, LOW, MED_SPD,LOW, LOW, MED_SPD);
 }
 
 void controlMotors(int ADirection, int ABrake, int ASpeed,int BDirection, int BBrake, int BSpeed)
