@@ -48,7 +48,7 @@ float maxL_L_Sval = 0;
 // sensor definitions
 #define SENSOR_MID 380 // sensor on edge of black line
 #define SENSOR_MAX 1000 // sensor in the middle of black
-#define PRX_SENSOR_DIST 130 // distance to stop proximity sensor
+#define PRX_SENSOR_DIST 160 // distance to stop proximity sensor
 
 enum MoveType {
   FORWARD_INTERSECTION,
@@ -81,10 +81,10 @@ int motorBBrake = 8;
 int motorBSpeed = 11;
 
 // motor speeds
-#define FAST_SPD 200 //
-#define MED_SPD 160 //
+#define FAST_SPD 150 //
+#define MED_SPD 100 //
 #define SLOW_SPD 30 //
-#define TURN_SPD 110 //
+#define TURN_SPD 90 //
 
 // RGB Led data
 enum ColorType {
@@ -122,8 +122,6 @@ unsigned long ElapsedBackupTime;
 #define MAX_FORWARD_TIME 2000 //max backup time
 
 
-
-
 void setup() {
   if(debug){
     Serial.begin(9600);
@@ -135,8 +133,7 @@ void setup() {
 }
 
 void loop() {
-  //checkProximity();
-  proximity_data = 10;
+  checkProximity();
   checkColor();
   getDataFromSensors();
   steerCar();
@@ -273,7 +270,10 @@ void steerCar()
   else
   {
     
-    if(debugSens){Serial.print(" RRS: "); Serial.print(sensorValueR_R_S); Serial.print(" LLS: "); Serial.print(sensorValueL_L_S); Serial.println();}
+    if(debugSens){Serial.print(" RRS: "); Serial.print(sensorValueR_R_S);
+    Serial.print(" RS: "); Serial.print(sensorValueR_S);
+    Serial.print(" RS: "); Serial.print(sensorValueL_S);
+    Serial.print(" LLS: "); Serial.print(sensorValueL_L_S); Serial.println();}
 
     // all sensors show nothing
     if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
@@ -429,8 +429,7 @@ void moveCar(MoveType mt, String name)
 }
 
 void forward(){  //forword
-  controlMotors(HIGH, LOW, 100,HIGH, LOW, 115);
-  //controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, MED_SPD);
+  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, MED_SPD);
 }
 
 void forwardStrong(int millis)
