@@ -81,10 +81,15 @@ int motorBBrake = 8;
 int motorBSpeed = 11;
 
 // motor speeds
-#define FAST_SPD 150 //
-#define MED_SPD 100 //
-#define SLOW_SPD 30 //
-#define TURN_SPD 90 //
+#define FAST_SPD 200.0 //
+#define MED_SPD 150.0 //
+#define SLOW_SPD 30.0 //
+#define TURN_SPD 90.0 //
+float speedPercent = 1.0;
+#define MAX_SPD_PRECENT 1.7
+#define MED_SPD_PRECENT 0.9
+#define SLOW_SPD_PRECENT 0.6
+bool cameFromWhite = 0;
 
 // RGB Led data
 enum ColorType {
@@ -101,8 +106,8 @@ int ledGreen = 6;
 int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
-int debug = 0; // set to 1 if serial debug output needed
-int debugDrv = 0;
+int debug = 1; // set to 1 if serial debug output needed
+int debugDrv = 1;
 int debugSens = 0;
 int debugLit = 0;
 int debugPrx = 0;
@@ -114,12 +119,17 @@ unsigned long StartForwardTime;
 unsigned long CurrentForwardTime;
 unsigned long ElapsedForwardTime;
 
+unsigned long StartWhiteSpaceTime;
+unsigned long CurrentWhiteSpaceTime;
+unsigned long ElapsedWhiteSpaceTime;
+
 unsigned long StartBackupTime;
 unsigned long CurrentBackupTime;
 unsigned long ElapsedBackupTime;
 
 #define MAX_BACKUP_TIME 2000 //max backup time
 #define MAX_FORWARD_TIME 2000 //max backup time
+#define MAX_WHITESPACE_TIME 500 //max backup time
 
 
 void setup() {
@@ -238,8 +248,8 @@ void manual_calibration()
     if(L_L_Sval > maxL_L_Sval){maxL_L_Sval = L_L_Sval;}
 
     if(debugClb){
-      Serial.print("calib R_R_Sval min: "); Serial.print(minR_R_Sval);  Serial.print(" max: "); Serial.print(maxR_R_Sval); Serial.println();
-      Serial.print(" calib L_L_Sval min: "); Serial.print(minL_L_Sval);  Serial.print(" max: ");   Serial.print(maxL_L_Sval); Serial.println();
+      Serial.print(" calib L_L_Sval min: "); Serial.print(minL_L_Sval);  Serial.print(" max: ");   Serial.print(maxL_L_Sval);
+      Serial.print("calib R_R_Sval min: "); Serial.print(minR_R_Sval);  Serial.print(" max: "); Serial.print(maxR_R_Sval);Serial.println();
       Serial.println();
     }
     delay(20);
@@ -270,20 +280,51 @@ void steerCar()
   else
   {
     
-    if(debugSens){Serial.print(" RRS: "); Serial.print(sensorValueR_R_S);
-    Serial.print(" RS: "); Serial.print(sensorValueR_S);
-    Serial.print(" RS: "); Serial.print(sensorValueL_S);
-    Serial.print(" LLS: "); Serial.print(sensorValueL_L_S); Serial.println();}
+    if(debugSens){
+      Serial.print(" LLS: "); Serial.print(sensorValueL_L_S);
+      Serial.print(" RS: "); Serial.print(sensorValueL_S);
+      Serial.print(" RS: "); Serial.print(sensorValueR_S);
+      Serial.print(" RRS: "); Serial.print(sensorValueR_R_S);
+      Serial.println();
+    }
 
     // all sensors show nothing
     if(!sensorValueR_S && !sensorValueL_S && sensorValueR_R_S < SENSOR_MID && sensorValueL_L_S < SENSOR_MID)
     { 
+      cameFromWhite =0;
       handleWhiteSpace();
     }
     // LLS and RRS have priority. If they see something they must turn towards it
     
     else 
     {
+      CurrentWhiteSpaceTime = millis();
+      ElapsedWhiteSpaceTime = CurrentWhiteSpaceTime - StartWhiteSpaceTime;
+      
+      // last time sensors were on white
+      if(lastSesorStatus[RRS] < SENSOR_MID ||
+      lastSesorStatus[RS] == 0 ||
+      lastSesorStatus[LS] == 0 ||
+      lastSesorStatus[LLS] < SENSOR_MID)
+      {
+        cameFromWhite =1;
+        StartWhiteSpaceTime = millis();
+      }
+
+      if(ElapsedWhiteSpaceTime > MAX_WHITESPACE_TIME)
+      {
+        cameFromWhite =0;
+      }
+
+      if(cameFromWhite == 1)
+      {
+        speedPercent = MED_SPD_PRECENT;
+      }
+      else
+      {
+        speedPercent = MAX_SPD_PRECENT;
+      }
+
       StartForwardTime = millis();
       if(sensorValueR_R_S > SENSOR_MID || sensorValueL_L_S > SENSOR_MID)
       {
@@ -422,14 +463,17 @@ void moveCar(MoveType mt, String name)
       break;
   }
   
-  if(debugDrv){Serial.println(name);}
+  if(debugDrv){
+      Serial.println(name);
+      Serial.println(speedPercent);
+    }
   
   lastDirection = mt;
   setSensorStatus(sensorValueR_R_S, sensorValueR_S, sensorValueC_S, sensorValueL_S, sensorValueL_L_S);
 }
 
 void forward(){  //forword
-  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, MED_SPD);
+  controlMotors(HIGH, LOW, MED_SPD*speedPercent,HIGH, LOW, MED_SPD*speedPercent);
 }
 
 void forwardStrong(int millis)
@@ -439,33 +483,33 @@ void forwardStrong(int millis)
 }
 
 void turnRight(){ //turnRight
-  controlMotors(HIGH, LOW, SLOW_SPD,HIGH, LOW, MED_SPD);
+  controlMotors(HIGH, LOW, SLOW_SPD*speedPercent,HIGH, LOW, MED_SPD*speedPercent);
 }
 
 void turn90Right(){ //turn90Right
-  controlMotors(LOW, LOW, SLOW_SPD,HIGH, LOW, FAST_SPD);
+  controlMotors(LOW, LOW, MED_SPD*speedPercent,HIGH, LOW, FAST_SPD*speedPercent);
 }
 
 void turnWideRight(){ //turnWideRight
-  controlMotors(HIGH, LOW, TURN_SPD,HIGH, LOW, MED_SPD);
+  controlMotors(HIGH, LOW, TURN_SPD*speedPercent,HIGH, LOW, MED_SPD*speedPercent);
 }
 
 void turnLeft(){ //turnLeft
-  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, SLOW_SPD);
+  controlMotors(HIGH, LOW, MED_SPD*speedPercent,HIGH, LOW, SLOW_SPD*speedPercent);
 }
 
 void turn90Left(){ //turn90Left
-  controlMotors(HIGH, LOW, FAST_SPD,LOW, LOW, SLOW_SPD);
+  controlMotors(HIGH, LOW, FAST_SPD*speedPercent,LOW, LOW, MED_SPD*speedPercent);
 }
 
 void turnWideLeft(){ //turnWideLeft
-  controlMotors(HIGH, LOW, MED_SPD,HIGH, LOW, TURN_SPD);
+  controlMotors(HIGH, LOW, MED_SPD*speedPercent,HIGH, LOW, TURN_SPD*speedPercent);
 }
 void Stop(){ //stop
   controlMotors(HIGH, HIGH, 0,HIGH, HIGH, 0);
 }
 void backup(){ //backup
-  controlMotors(LOW, LOW, MED_SPD,LOW, LOW, MED_SPD);
+  controlMotors(LOW, LOW, MED_SPD*speedPercent,LOW, LOW, MED_SPD*speedPercent);
 }
 
 void controlMotors(int ADirection, int ABrake, int ASpeed,int BDirection, int BBrake, int BSpeed)
