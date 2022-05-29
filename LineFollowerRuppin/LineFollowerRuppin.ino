@@ -88,7 +88,7 @@ int motorBSpeed = 11;
 float speedPercent = 1.0;
 #define MAX_SPD_PRECENT 1.7
 #define MED_SPD_PRECENT 0.9
-#define SLOW_SPD_PRECENT 0.6
+#define SLOW_SPD_PRECENT 0.7
 bool cameFromWhite = 0;
 
 // RGB Led data
@@ -106,8 +106,8 @@ int ledGreen = 6;
 int ledBlue = 10;
 
 // set these to get serial print of data, on real run disable these
-int debug = 1; // set to 1 if serial debug output needed
-int debugDrv = 1;
+int debug = 0; // set to 1 if serial debug output needed
+int debugDrv = 0;
 int debugSens = 0;
 int debugLit = 0;
 int debugPrx = 0;
@@ -318,7 +318,7 @@ void steerCar()
 
       if(cameFromWhite == 1)
       {
-        speedPercent = MED_SPD_PRECENT;
+        speedPercent = SLOW_SPD_PRECENT;
       }
       else
       {
@@ -331,6 +331,7 @@ void steerCar()
         // this is an intersection
         if((sensorValueR_R_S > SENSOR_MID)&&(sensorValueL_L_S > SENSOR_MID)){
           if(debugLedDrv){activateRGB(WHITE);}
+          speedPercent = MED_SPD_PRECENT;
           moveCar(FORWARD_INTERSECTION, String("forward intersection"));
   
         }   
@@ -380,6 +381,7 @@ void handleWhiteSpace()
   // if not enough time has passed 
   if(ElapsedForwardTime < MAX_FORWARD_TIME)
   {
+    speedPercent = SLOW_SPD_PRECENT;
     if(sensorValueC_S)
     {
       if(debugLedDrv){activateRGB(RED);}
@@ -405,6 +407,7 @@ void handleWhiteSpace()
 //    ElapsedBackupTime = CurrentBackupTime - StartBackupTime;
 //    if(ElapsedTime < MAX_BACKUP_TIME)
 //    {
+      speedPercent = MED_SPD_PRECENT;
       backup();
 //    }
   }
@@ -441,7 +444,7 @@ void moveCar(MoveType mt, String name)
 {
   switch (mt) {
     case FORWARD_INTERSECTION:
-        forward();
+        forwardStrong(200);
       break;
     case TURN_LEFT_90:
         turn90Left();
